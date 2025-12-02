@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PDU Fashion</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#5D4037',
+                        secondary: '#FDFBE9',
+                        accent: '#8D6E63',
+                        background: '#FFFFFF',
+                        surface: '#FAFAFA'
+                    },
+                    fontFamily: { sans: ['Inter', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Gemini SDK -->
+    <script type="importmap">
+    {
+        "imports": {
+            "@google/genai": "https://esm.run/@google/genai"
+        }
+    }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    </style>
+</head>
+<body class="bg-gray-50 flex justify-center min-h-screen">
+    <!-- Main App Container -->
+    <div id="app" class="w-full max-w-md bg-white min-h-screen shadow-2xl relative pb-24 overflow-hidden flex flex-col">
+        <!-- Content will be injected here by JS -->
+    </div>
+
+    <!-- Bottom Nav -->
+    <div class="absolute bottom-6 left-6 right-6 z-20">
+        <div class="bg-black rounded-[30px] px-6 py-4 flex justify-between items-center shadow-2xl" id="nav-container">
+            <!-- Nav Items injected here -->
+        </div>
+    </div>
+
+    <script type="module">
+        import { GoogleGenAI } from "@google/genai";
+        
+        // --- STATE ---
+        let activeTab = 'HOME';
+        // Note: In the downloaded file, the user might need to insert their own key if env didn't carry over
+        let apiKey = "GEMINI_API_KEY"; 
+        let chatMessages = [{role: 'model', text: 'Hello! I am your PDU Fashion Assistant. How can I help you elevate your style today?'}];
+        
+        // --- COMPONENTS ---
+        // We define functions that return HTML strings for each component
+        const components = {
+            header: () => `
+                <div class="px-6 py-4 flex items-center justify-between bg-white sticky top-0 z-10">
+                    <div class="flex flex-col cursor-pointer group active:opacity-70 transition-opacity">
+                        <span class="text-gray-500 text-sm mb-1 group-hover:text-primary transition-colors">Location</span>
+                        <div class="flex items-center text-gray-900 font-semibold">
+                            <i data-lucide="map-pin" class="w-5 h-5 text-primary mr-1 fill-primary"></i>
+                            <span>Lagos Nigeria</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <div class="relative inline-flex items-center cursor-pointer group active:scale-95 transition-transform">
+                            <input type="checkbox" class="sr-only peer" checked>
+                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary transition-colors"></div>
+                        </div>
+                        <button class="relative p-2 bg-gray-100 rounded-full cursor-pointer hover:bg-gray-200 active:scale-90 transition-all duration-200">
+                            <i data-lucide="bell" class="w-5 h-5 text-gray-700"></i>
+                            <span class="absolute top-2 right-2 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"></span>
+                        </button>
+                    </div>
+                </div>
+            `,
+            banner: () => `
+                <div class="px-6 mt-4">
+                    <div class="relative bg-[#FEFCE8] rounded-3xl p-6 flex items-center justify-between h-48 overflow-hidden shadow-sm">
+                        <div class="z-10 w-2/3 pr-4">
+                            <h2 class="text-2xl font-bold text-gray-900 mb-2 leading-tight">PDU New Arrival</h2>
+                            <p class="text-gray-700 text-sm mb-4">Discount 50% for the first transactions</p>
+                            <button class="bg-primary text-white text-xs px-4 py-2 rounded-full font-medium hover:bg-opacity-90 active:scale-95 transition-all shadow-md hover:shadow-lg">Shop Now</button>
+                        </div>
+                        <div class="absolute right-0 bottom-0 top-0 w-1/2 flex items-end justify-end">
+                            <img src="https://picsum.photos/300/400?random=101" class="h-full w-full object-cover object-top rounded-r-3xl" style="mask-image: linear-gradient(to right, transparent, black 20%)">
+                        </div>
+                        <div class="absolute bottom-4 left-6 flex space-x-2">
+                             <div class="h-2 w-2 rounded-full bg-primary"></div>
+                             <div class="h-2 w-2 rounded-full bg-gray-300"></div>
+                             <div class="h-2 w-2 rounded-full bg-gray-300"></div>
+                             <div class="h-2 w-2 rounded-full bg-gray-300"></div>
+                        </div>
+                    </div>
+                </div>
+            `,
+            categories: () => `
+                <div class="px-6 mt-8">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-bold text-lg text-gray-900">Category</h3>
+                        <button class="text-sm text-gray-500 hover:text-primary active:scale-95 transition-all">See All</button>
+                    </div>
+                    <div class="flex justify-between">
+                        ${['Shirt', 'Footprints', 'Shopping-bag', 'Watch'].map(icon => `
+                            <div class="flex flex-col items-center space-y-2 cursor-pointer group">
+                                <button class="w-16 h-16 rounded-full bg-[#FEFCE8] flex items-center justify-center group-hover:bg-primary group-hover:bg-opacity-10 active:scale-90 transition-all duration-200 shadow-sm hover:shadow-md">
+                                    <i data-lucide="${icon.toLowerCase()}" class="w-6 h-6 text-primary"></i>
+                                </button>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `,
+            flashSale: () => `
+                <div class="mt-8">
+                    <div class="px-6 flex justify-between items-center mb-4">
+                        <h3 class="font-bold text-lg text-gray-900">Flash Sale</h3>
+                        <div class="text-sm font-medium text-gray-600">
+                            Closing in : <span class="bg-secondary px-1 rounded text-primary font-bold">02</span> : <span class="bg-secondary px-1 rounded text-primary font-bold">12</span> : <span class="bg-secondary px-1 rounded text-primary font-bold">56</span>
+                        </div>
+                    </div>
+                    <div class="px-6 flex space-x-3 overflow-x-auto no-scrollbar pb-2">
+                        ${['All', 'Newest', 'Popular', 'Man', 'Woman'].map((filter, i) => `
+                            <button class="whitespace-nowrap px-6 py-2 rounded-full border text-sm font-medium transition-all duration-200 active:scale-95 ${i === 0 ? 'bg-white border-black text-black shadow-sm' : 'bg-transparent border-gray-200 text-gray-500'}">${filter}</button>
+                        `).join('')}
+                    </div>
+                </div>
+            `,
+            productGrid: () => `
+                <div class="px-6 mt-6 grid grid-cols-2 gap-4 pb-4">
+                    ${[
+                        {id:1, name:'Brown Bomber', price:85, img:1},
+                        {id:2, name:'Casual Shirt', price:45, img:2},
+                        {id:3, name:'Leather Bag', price:120, img:3},
+                        {id:4, name:'Classic Watch', price:250, img:4}
+                    ].map(p => `
+                        <div class="group relative rounded-2xl overflow-hidden aspect-[3/4] active:scale-[0.98] transition-transform duration-300">
+                            <img src="https://picsum.photos/300/400?random=${p.img}" class="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                            <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all"></div>
+                            <button class="absolute top-3 right-3 p-2 rounded-full bg-white/60 backdrop-blur-sm hover:bg-white active:scale-90 transition-all duration-200 z-10 shadow-sm">
+                                <i data-lucide="heart" class="w-4 h-4 text-gray-700"></i>
+                            </button>
+                        </div>
+                    `).join('')}
+                </div>
+            `,
+            chat: () => {
+                const msgsHtml = chatMessages.map(msg => `
+                    <div class="flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} mb-4 fade-in">
+                        <div class="flex items-end space-x-2 max-w-[80%] ${msg.role === 'user' ? 'flex-row-reverse space-x-reverse' : 'flex-row'}">
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${msg.role === 'user' ? 'bg-gray-200' : 'bg-primary'}">
+                                <i data-lucide="${msg.role === 'user' ? 'user' : 'bot'}" class="w-5 h-5 ${msg.role === 'user' ? 'text-gray-600' : 'text-white'}"></i>
+                            </div>
+                            <div class="p-3 rounded-2xl text-sm ${msg.role === 'user' ? 'bg-primary text-white rounded-br-none shadow-md' : 'bg-white border border-gray-100 shadow-sm text-gray-800 rounded-bl-none'}">
+                                ${msg.text}
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+
+                return `
+                    <div class="flex flex-col h-[calc(100vh-100px)] pt-20 bg-gray-50 relative">
+                        <div class="absolute top-0 left-0 right-0 bg-white shadow-sm p-4 z-10 flex items-center justify-center border-b">
+                            <div class="flex items-center space-x-2">
+                                <i data-lucide="sparkles" class="w-5 h-5 text-primary"></i>
+                                <h2 class="font-bold text-lg text-primary">Fashion Assistant</h2>
+                            </div>
+                        </div>
+                        <div class="flex-1 overflow-y-auto p-4" id="chat-messages">
+                            ${msgsHtml}
+                            <div id="loading-indicator" class="hidden flex justify-start mb-4">
+                                <div class="flex items-end space-x-2">
+                                    <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><i data-lucide="bot" class="w-5 h-5 text-white"></i></div>
+                                    <div class="bg-white border border-gray-100 p-3 rounded-2xl rounded-bl-none shadow-sm flex space-x-1">
+                                        <div class="w-2 h-2 bg-gray-300 rounded-full animate-bounce"></div>
+                                        <div class="w-2 h-2 bg-gray-300 rounded-full animate-bounce delay-75"></div>
+                                        <div class="w-2 h-2 bg-gray-300 rounded-full animate-bounce delay-150"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="p-4 bg-white border-t">
+                            <div class="flex items-center space-x-2 bg-gray-100 rounded-full px-4 py-2 border border-transparent focus-within:border-gray-300 focus-within:bg-white transition-all">
+                                <input type="text" id="chat-input" placeholder="Ask for fashion advice..." class="flex-1 bg-transparent border-none focus:ring-0 outline-none text-sm text-gray-800">
+                                <button id="send-btn" class="p-2 rounded-full transition-all active:scale-90 text-primary hover:bg-gray-200">
+                                    <i data-lucide="send" class="w-5 h-5"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            },
+            profile: () => `
+                <div class="flex flex-col h-full bg-gray-50 p-6 overflow-y-auto">
+                    <h1 class="text-2xl font-bold text-gray-900 mb-6">Profile</h1>
+                    <div class="flex items-center space-x-4 mb-8">
+                        <div class="w-20 h-20 bg-primary rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-lg">JD</div>
+                        <div>
+                            <h2 className="text-xl font-bold text-gray-900">John Doe</h2>
+                            <p className="text-gray-500">Fashion Enthusiast</p>
+                        </div>
+                    </div>
+                    <div class="space-y-4">
+                         <div class="bg-white rounded-2xl p-4 flex items-center justify-between shadow-sm"><span class="font-medium">Edit Profile</span><i data-lucide="chevron-right" class="text-gray-400"></i></div>
+                         <div class="bg-white rounded-2xl p-4 flex items-center justify-between shadow-sm"><span class="font-medium">Settings</span><i data-lucide="chevron-right" class="text-gray-400"></i></div>
+                    </div>
+                    <div class="mt-8 text-center text-gray-400 text-sm">You are currently running the vanilla version.</div>
+                </div>
+            `
+        };
+
+        // --- RENDER LOGIC ---
+        function render() {
+            const app = document.getElementById('app');
+            if (activeTab === 'HOME') {
+                app.innerHTML = `
+                    ${components.header()}
+                    <div class="px-6 mt-4 flex items-center space-x-3">
+                        <div class="flex-1 bg-white border border-gray-200 rounded-full px-4 py-3 flex items-center shadow-sm focus-within:ring-2 focus-within:ring-primary focus-within:border-primary transition-shadow">
+                            <i data-lucide="search" class="w-5 h-5 text-gray-400 mr-2"></i>
+                            <input type="text" placeholder="Search" class="flex-1 bg-transparent outline-none text-gray-700 placeholder-gray-400 text-sm font-medium">
+                        </div>
+                        <button class="bg-primary p-3 rounded-full text-white shadow-md hover:bg-opacity-90 active:scale-90 transition-all duration-200">
+                            <i data-lucide="settings-2" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                    <div class="overflow-y-auto no-scrollbar pb-24 h-[calc(100vh-180px)]">
+                        ${components.banner()}
+                        ${components.categories()}
+                        ${components.flashSale()}
+                        ${components.productGrid()}
+                    </div>
+                `;
+            } else if (activeTab === 'CHAT') {
+                app.innerHTML = components.chat();
+                setTimeout(() => {
+                    const input = document.getElementById('chat-input');
+                    const btn = document.getElementById('send-btn');
+                    if(btn && input) {
+                        btn.onclick = handleSend;
+                        input.onkeydown = (e) => { if(e.key === 'Enter') handleSend(); }
+                    }
+                    const container = document.getElementById('chat-messages');
+                    if(container) container.scrollTop = container.scrollHeight;
+                }, 0);
+            } else if (activeTab === 'PROFILE') {
+                app.innerHTML = components.profile();
+            } else {
+                app.innerHTML = `<div class="flex items-center justify-center h-full text-gray-400">Coming Soon</div>`;
+            }
+            renderNav();
+            lucide.createIcons();
+        }
+
+        function renderNav() {
+            const navContainer = document.getElementById('nav-container');
+            const tabs = [
+                {id: 'HOME', icon: 'home'},
+                {id: 'SHOP', icon: 'shopping-bag'},
+                {id: 'FAVORITES', icon: 'heart'},
+                {id: 'CHAT', icon: 'message-circle'},
+                {id: 'PROFILE', icon: 'user'}
+            ];
+            navContainer.innerHTML = tabs.map(t => {
+                const isActive = activeTab === t.id;
+                return `
+                    <button onclick="window.switchTab('${t.id}')" class="relative flex items-center justify-center transition-all duration-300 active:scale-90 ${isActive ? 'bg-[#FEFCE8] rounded-full w-10 h-10' : 'text-gray-400 p-2 hover:text-gray-200'}">
+                        <i data-lucide="${t.icon}" class="w-5 h-5 ${isActive ? 'text-black fill-black' : 'text-gray-400'}"></i>
+                    </button>
+                `;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        // --- GEMINI LOGIC ---
+        async function handleSend() {
+            const input = document.getElementById('chat-input');
+            const text = input.value.trim();
+            if(!text) return;
+            
+            chatMessages.push({role: 'user', text});
+            input.value = '';
+            render(); 
+
+            // Show loading
+            document.getElementById('loading-indicator').classList.remove('hidden');
+            const container = document.getElementById('chat-messages');
+            container.scrollTop = container.scrollHeight;
+
+            try {
+                if(!apiKey) {
+                   throw new Error("API Key missing");
+                }
+                const ai = new GoogleGenAI({ apiKey });
+                const response = await ai.models.generateContent({
+                    model: 'gemini-2.5-flash',
+                    contents: text,
+                    config: {
+                        systemInstruction: 'You are a fashion stylist assistant for the PDU Fashion app.'
+                    }
+                });
+                
+                chatMessages.push({role: 'model', text: response.text});
+            } catch(e) {
+                console.error(e);
+                chatMessages.push({role: 'model', text: "I'm having trouble connecting to the stylist right now. (Check API Key)"});
+            }
+            render();
+        }
+
+        // --- GLOBAL EXPORTS ---
+        window.switchTab = (tab) => {
+            activeTab = tab;
+            render();
+        };
+        
+        // Initial Render
+        render();
+    </script>
+</body>
+</html>
